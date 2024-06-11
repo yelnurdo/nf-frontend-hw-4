@@ -1,4 +1,3 @@
-// app/hooks/useCreateProduct.ts
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { AxiosResponse } from 'axios';
 import { productAPI } from '../api/axiosInstances';
@@ -21,7 +20,7 @@ export const useCreateProduct = () => {
   return useMutation<AxiosResponse<Product>, Error, Product>({
     mutationFn: createProduct,
     onSuccess: (_, product) => {
-      queryClient.invalidateQueries(['categoryProducts', { category: product.category }]);
+      // queryClient.invalidateQueries(['categoryProducts', product.category]);
     },
   });
 };

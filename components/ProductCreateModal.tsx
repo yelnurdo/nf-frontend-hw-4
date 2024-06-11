@@ -1,9 +1,9 @@
 // components/ProductCreateModal.tsx
 'use client';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { fetchAllCategories, uploadFile } from '@/app/api/services/productService';
-import { useCreateProduct } from '@/app/hooks/useCreateProduct';
+import { fetchAllCategories, uploadFile } from '../app/api/services/productService';
+import { useCreateProduct } from '../app/hooks/useCreateProduct';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 
@@ -12,7 +12,7 @@ interface ProductCreateModalProps {
 }
 
 const ProductCreateModal: React.FC<ProductCreateModalProps> = ({ closeModal }) => {
-  const [photos, setPhotos] = useState<{ id: number; src: string }[]>([]);
+  const [photos, setPhotos] = useState<{ id: number; src: string; percentCompleted: number }[]>([]);
   const [totalId, setTotalId] = useState<number>(0);
   const { mutate: createProduct } = useCreateProduct();
   const { data, isLoading, isError } = useQuery({
@@ -21,12 +21,25 @@ const ProductCreateModal: React.FC<ProductCreateModalProps> = ({ closeModal }) =
   });
   const router = useRouter();
 
+  useEffect(() => {
+    const storedPhotos = localStorage.getItem('photos');
+    if (storedPhotos) {
+      setPhotos(JSON.parse(storedPhotos));
+    }
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem('photos', JSON.stringify(photos));
+  }, [photos]);
+
   const handleFileUpload = async (index: number, file: File) => {
     try {
-      const imageUrl = await uploadFile(file);
+      const response = await uploadFile(file);
+      const { location } = response;
       setPhotos(photos => {
         const updatedPhotos = [...photos];
-        updatedPhotos[index].src = imageUrl;
+        updatedPhotos[index].src = location;
+        updatedPhotos[index].percentCompleted = 100;
         return updatedPhotos;
       });
     } catch (error) {
@@ -35,14 +48,14 @@ const ProductCreateModal: React.FC<ProductCreateModalProps> = ({ closeModal }) =
   };
 
   const handleAddPhoto = () => {
-    setPhotos([...photos, { id: totalId, src: '' }]);
+    setPhotos([...photos, { id: totalId, src: '', percentCompleted: 0 }]);
     setTotalId(totalId + 1);
   };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const { productname, productprice, category } = e.currentTarget.elements as any;
-    const images = photos.map(photo => photo.src).filter(src => src);
+    const images = photos.filter(photo => photo.percentCompleted === 100).map(photo => photo.src);
     if (images.length === 0) {
       alert('Please upload at least one image');
       return;
@@ -58,7 +71,7 @@ const ProductCreateModal: React.FC<ProductCreateModalProps> = ({ closeModal }) =
     }, {
       onSuccess: () => {
         closeModal();
-        router.push(`/category/${category.value}`);
+        router.refresh(); // Refresh the page to show the new product
       },
     });
 
@@ -127,6 +140,7 @@ const ProductCreateModal: React.FC<ProductCreateModalProps> = ({ closeModal }) =
                 {photo.src && (
                   <Image src={photo.src} alt="Product Image" width={100} height={100} className="rounded" />
                 )}
+                <progress value={photo.percentCompleted} max="100" className="w-full"></progress>
               </div>
             ))}
             <button
